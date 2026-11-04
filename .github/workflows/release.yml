@@ -1,8 +1,9 @@
 name: Release
 
 # A version tag (v1.0.0) releases the image CI built for that commit: it's
-# tagged with the version and "latest" on GHCR, and a GitHub release is made
-# with the tag's message as its notes.
+# tagged with the version and "latest" on GHCR (the all-in-one image with
+# the version and "all-in-one"), and a GitHub release is made with the tag's
+# message as its notes.
 
 on:
   push:
@@ -45,7 +46,9 @@ jobs:
           exit 1
 
       - name: Tag it with the version
-        run: docker buildx imagetools create --tag "$IMAGE:$GITHUB_REF_NAME" --tag "$IMAGE:latest" "$IMAGE:$GITHUB_SHA"
+        run: |
+          docker buildx imagetools create --tag "$IMAGE:$GITHUB_REF_NAME" --tag "$IMAGE:latest" "$IMAGE:$GITHUB_SHA"
+          docker buildx imagetools create --tag "$IMAGE:$GITHUB_REF_NAME-all-in-one" --tag "$IMAGE:all-in-one" "$IMAGE:$GITHUB_SHA-all-in-one"
 
       - name: Create the GitHub release
         env:

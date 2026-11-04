@@ -262,6 +262,17 @@ DOSSIER_IMAGE=dossier:local DOSSIER_PORT=3300 docker compose -f compose.producti
 
 CI pushes an image for every commit on `main` to `ghcr.io/<owner>/<repository>:<sha>` (lower case), once the checks and the end-to-end tests pass, on `main` or in the commit's pull request. A version tag (`v1.0.0`) then tags that commit's image with the version and `latest`.
 
+### The all-in-one image
+
+The `all-in-one` stage is the production image with PostgreSQL 18 inside, for running Dossier as a single container. CI pushes it as `<sha>-all-in-one`, and a version tag tags it `v1.0.0-all-in-one` and `all-in-one`. It starts with `docker/start-all-in-one.sh`: unless `DATABASE_URL` is set (then it's the plain image), it makes a database in `/data/postgres` on the first start, runs PostgreSQL on a socket inside the container (no port), and then `docker/start.sh`. On `docker stop` it stops the server, then PostgreSQL; if either stops by itself, the container stops, so Docker's restart policy starts it again. To try it:
+
+```bash
+docker build --target all-in-one -t dossier:all-in-one .
+docker run --rm -p 127.0.0.1:3300:3000 -v dossier-aio:/data --env-file .env dossier:all-in-one
+```
+
+The database's files only work with the PostgreSQL major version that made them, so the image stays on 18. When it moves to a newer one, `docker/start-all-in-one.sh` refuses an older database with a message: the way across is an export from the old image and an import into the new one.
+
 ## The website
 
 `site/` is the project's website, plain HTML, CSS and a little JavaScript. `site/build.sh` puts it together in `_site/` with the README's screenshots (`.github/images/`), the app's icons and three of its fonts, so there's one copy of each. To look at it, serve `_site/` with any static server, for example `docker run --rm -p 8080:80 -v "$PWD/_site:/usr/share/nginx/html:ro" nginx:alpine`, then open http://localhost:8080. The public repository's Pages workflow publishes it when any of those change on `main`. When the README's screenshots change, the site's change with them.

@@ -101,7 +101,15 @@ docker compose up -d
 
 The first start downloads the image (about 1.7 GB) and sets up the database. Open [http://localhost:3000](http://localhost:3000), sign in with your password, and pick an AI model in **Settings → AI provider** (see [Choosing an AI provider](https://github.com/AienTech/dossier/wiki/Choosing-an-AI-provider)).
 
-`docker compose stop` stops it and `docker compose start` starts it again, with your data kept. It's only reachable from your own computer. The [installation guide's Docker Compose page](https://github.com/AienTech/dossier/wiki/Run-locally-with-Docker-Compose) has more: another port, your time zone, upgrades and removing it.
+`docker compose stop` stops it and `docker compose start` starts it again, with your data kept.
+
+**In a single container:** the `all-in-one` image has its own PostgreSQL inside, so you don't need Compose or a separate database. Do steps 1 and 2 (you won't need `POSTGRES_PASSWORD`), then:
+
+```bash
+docker run -d --name dossier --restart unless-stopped --env-file .env -v dossier-data:/data -p 127.0.0.1:3000:3000 ghcr.io/aientech/dossier:all-in-one
+```
+
+Everything Dossier keeps, the database included, is in the `dossier-data` volume. To back it up, stop the container and copy the volume, or export your data in Settings → Your data. It's only reachable from your own computer. The [installation guide's Docker Compose page](https://github.com/AienTech/dossier/wiki/Run-locally-with-Docker-Compose) has more: another port, your time zone, upgrades and removing it.
 
 ## Self-hosting
 

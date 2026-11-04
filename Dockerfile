@@ -62,7 +62,7 @@ RUN node_modules/.bin/esbuild scripts/hash-password.ts --bundle --platform=node 
   --outfile=/tools/hash-password.mjs --banner:js='#!/usr/bin/env node' \
   && chmod 755 /tools/hash-password.mjs
 
-FROM base AS production
+FROM base AS runtime
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
@@ -88,3 +88,28 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 COPY docker/start.sh ./start.sh
 # Migrations, the seed, then the server (E12-3).
 CMD ["./start.sh"]
+
+# ── All in one (#17) ─────────────────────────────────────────────────────────
+# The production image with a PostgreSQL of its own, for running Dossier as a
+# single container without a database server (docker/start-all-in-one.sh).
+# Tagged "all-in-one"; the plain image above stays as it is.
+
+FROM runtime AS all-in-one
+USER root
+# PostgreSQL 18, as in compose.production.yml, from the PostgreSQL project's
+# packages (Debian 13 has 17). Without the package's own cluster: the start
+# script makes one in /data/postgres.
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates postgresql-common \
+  && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+  && sed -i 's/^#\?\s*create_main_cluster.*/create_main_cluster = false/' /etc/postgresql-common/createcluster.conf \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends postgresql-18 \
+  && rm -rf /var/lib/apt/lists/*
+USER node
+COPY docker/start-all-in-one.sh ./start-all-in-one.sh
+# PostgreSQL, then migrations, the seed and the server; or, with DATABASE_URL
+# set, the plain image's start.
+CMD ["./start-all-in-one.sh"]
+
+# The plain image, last so it's what a build without --target makes (CapRover).
+FROM runtime AS production
